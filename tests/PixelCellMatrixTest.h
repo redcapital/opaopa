@@ -29,6 +29,13 @@ class PixelCellMatrixTest : public CxxTest::TestSuite
       this->pm[px][py] = p;
     }
 
+    void _putBgPixel(Coords cellCoords, Pixel p, unsigned whichCorner)
+    {
+      PixelCellMatrix pcm;
+      Coords c = pcm.getCellBackgroundCoords(cellCoords, whichCorner);
+      this->pm[c.x][c.y] = p;
+    }
+
     void testWrongColorsShouldThrowException()
     {
       this->pm[25][56].r = 11;
@@ -117,4 +124,50 @@ class PixelCellMatrixTest : public CxxTest::TestSuite
       pcm.setPixelMatrix(this->pm);
       TS_ASSERT(!pcm.isEqual(c1, c2));
     }
+
+    void testFourDarkBackgroundPixelShouldBeDetectedAsEmpty()
+    {
+      PixelCellMatrix pcm;
+      // Empty-ness is determined by doing crazy (in fact, everything in
+      // PixelCellMatrix is crazy heuristic) checks of four pixels
+      // of cell background. So we need to put correctly those 4 pixels
+
+      // Put the same dark pixel on four positions
+      // This should be considered as empty cell, because non-empty
+      // cells has light background with four similar pixels.
+      Coords c(3, 3);
+      Pixel a(140, 140, 140);
+      this->_putBgPixel(c, a, 0);
+      this->_putBgPixel(c, a, 1);
+      this->_putBgPixel(c, a, 2);
+      this->_putBgPixel(c, a, 3);
+      pcm.setPixelMatrix(this->pm);
+      TS_ASSERT(pcm.isEmpty(c));
+    }
+
+    void testFourDifferentBackgroundPixelsShouldBeDetectedAsEmpty()
+    {
+      PixelCellMatrix pcm;
+      Coords c(4, 4);
+      this->_putBgPixel(c, Pixel(200, 200, 200), 0);
+      this->_putBgPixel(c, Pixel(201, 201, 201), 1);
+      this->_putBgPixel(c, Pixel(180, 180, 180), 2); // 1 and 3 not similar
+      this->_putBgPixel(c, Pixel(190, 190, 190), 3);
+      pcm.setPixelMatrix(this->pm);
+      TS_ASSERT(pcm.isEmpty(c));
+    }
+
+    void testFourSimilarLightBackgroundPixelsShouldBeDetectedAsNotEmpty()
+    {
+      PixelCellMatrix pcm;
+      Coords c(10, 6);
+      // Look. The are similar
+      this->_putBgPixel(c, Pixel(200, 200, 200), 0);
+      this->_putBgPixel(c, Pixel(201, 201, 201), 1);
+      this->_putBgPixel(c, Pixel(205, 208, 206), 2);
+      this->_putBgPixel(c, Pixel(199, 201, 203), 3);
+      pcm.setPixelMatrix(this->pm);
+      TS_ASSERT(!pcm.isEmpty(c));
+    }
 };
+

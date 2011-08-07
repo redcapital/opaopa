@@ -28,6 +28,40 @@ unsigned PixelCellMatrix::getCellBaseY(unsigned cellY)
   return cellY * PixelCellMatrix::CELL_HEIGHT + PixelCellMatrix::OFFSET_TOP;
 }
 
+/**
+ * Retrieves coordinates of pixel from cell background.
+ * Background has four key pixels. Parameter whichCorner determines
+ * which pixel should be handled:
+ *  0 - upper left
+ *  1 - upper right
+ *  2 - bottom right
+ *  3 - bottom left
+ */
+Coords PixelCellMatrix::getCellBackgroundCoords(Coords cellCoords, unsigned whichCorner)
+{
+  unsigned bx = this->getCellBaseX(cellCoords.x);
+  unsigned by = this->getCellBaseY(cellCoords.y);
+  switch (whichCorner) {
+    case 0:
+      bx += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
+      by += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
+      break;
+    case 1:
+      bx += PixelCellMatrix::CELL_WIDTH - PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
+      by += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
+      break;
+    case 2:
+      bx += PixelCellMatrix::CELL_WIDTH - PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
+      by += PixelCellMatrix::CELL_HEIGHT - PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
+      break;
+    case 3:
+      bx += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
+      by += PixelCellMatrix::CELL_HEIGHT - PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
+      break;
+  }
+  return Coords(bx, by);
+}
+
 bool PixelCellMatrix::isEqual(Coords c1, Coords c2)
 {
   // Iterate over three key pixels of each cell and see whether
@@ -43,6 +77,26 @@ bool PixelCellMatrix::isEqual(Coords c1, Coords c2)
 
 bool PixelCellMatrix::isEmpty(Coords c)
 {
+  // Iterate over four corner pixels of cell background.
+  // Cell is considered as NOT empty if both 2 conditions are met:
+  // - four points are similar
+  //   because background is monotone
+  // - each of them are lighter than RGB(150, 150, 150)
+  //   because it can be monotone but dark. Dark background is a "hole"
+  //   on game board, meaning it's an empty cell
+  for (unsigned i = 1; i < 4; i++) {
+    if (!this->isSimilar(bgData[c.x][c.y][0], bgData[c.x][c.y][i])) {
+      return true;
+    }
+  }
+  for (unsigned i = 0; i < 4; i++) {
+    if (bgData[c.x][c.y][i].r <= 150
+        && bgData[c.x][c.y][i].g <= 150
+        && bgData[c.x][c.y][i].b <= 150
+    ) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -67,6 +121,8 @@ void PixelCellMatrix::setPixelMatrix(PixelMatrix matrix)
 
   // Process pixel matrix and store only needed data
   // Storing whole array of pixel data is inefficient.
+
+  // Store cell data
   for (unsigned i = 0; i < ICellMatrix::CELLS_PER_ROW; i++) {
     for (unsigned j = 0; j < ICellMatrix::CELLS_PER_COL; j++) {
       unsigned bx = this->getCellBaseX(i);
@@ -75,6 +131,16 @@ void PixelCellMatrix::setPixelMatrix(PixelMatrix matrix)
         unsigned px = bx + PixelCellMatrix::KEY_PIXEL_COORDS[k].x;
         unsigned py = by + PixelCellMatrix::KEY_PIXEL_COORDS[k].y;
         this->pixelData[i][j][k] = matrix[px][py];
+      }
+    }
+  }
+
+  // Store backgroun color data
+  for (unsigned i = 0; i < ICellMatrix::CELLS_PER_ROW; i++) {
+    for (unsigned j = 0; j < ICellMatrix::CELLS_PER_COL; j++) {
+      for (unsigned k = 0; k < 4; k++) {
+        Coords pc = this->getCellBackgroundCoords(Coords(i, j), k);
+        this->bgData[i][j][k] = matrix[pc.x][pc.y];
       }
     }
   }
