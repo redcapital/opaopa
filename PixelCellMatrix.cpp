@@ -64,6 +64,11 @@ Coords PixelCellMatrix::getCellBackgroundCoords(Coords cellCoords, unsigned whic
 
 bool PixelCellMatrix::isEqual(Coords c1, Coords c2)
 {
+  // If any of the cells is empty return false
+  if (this->isEmpty(c1) || this->isEmpty(c2)) {
+    return false;
+  }
+
   // Iterate over three key pixels of each cell and see whether
   // they are similar.
   // If so, cells are similar

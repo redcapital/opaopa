@@ -36,6 +36,15 @@ class PixelCellMatrixTest : public CxxTest::TestSuite
       this->pm[c.x][c.y] = p;
     }
 
+    void _makeNotEmpty(Coords cellCoords)
+    {
+      Pixel light(230, 230, 230);
+      this->_putBgPixel(cellCoords, light, 0);
+      this->_putBgPixel(cellCoords, light, 1);
+      this->_putBgPixel(cellCoords, light, 2);
+      this->_putBgPixel(cellCoords, light, 3);
+    }
+
     void testWrongColorsShouldThrowException()
     {
       this->pm[25][56].r = 11;
@@ -91,20 +100,16 @@ class PixelCellMatrixTest : public CxxTest::TestSuite
       PixelCellMatrix pcm;
       // Remember, here Coords represent coordinates of cells, not pixels.
       // Coordinates are 0-based of course. As everything else in C/C++ :)
-      Coords c1(0, 0);
-      Coords c2(0, 4);
-
-      // So, everything is black and therefore all cells should be equal
-      pcm.setPixelMatrix(this->pm);
-      TS_ASSERT(pcm.isEqual(c1, c2));
+      Coords c1(1, 1);
+      Coords c2(7, 8);
+      this->_makeNotEmpty(c1);
+      this->_makeNotEmpty(c2);
 
       // Check 1, 1 and 7, 8 cells. Use first key pixel
       // a and b are similar pixels.
       Pixel a(10, 10, 10), b(20, 20, 20);
       this->_putPixel(1, 1, a, 0);
       this->_putPixel(7, 8, b, 0);
-      c1.x = 1; c1.y = 1;
-      c2.x = 7; c2.y = 8;
       pcm.setPixelMatrix(this->pm);
       TS_ASSERT(pcm.isEqual(c1, c2));
     }
@@ -121,6 +126,29 @@ class PixelCellMatrixTest : public CxxTest::TestSuite
       Pixel a(10, 10, 10), b(10, 10, 55);
       this->_putPixel(3, 4, a, 2);
       this->_putPixel(10, 7, b, 2);
+      pcm.setPixelMatrix(this->pm);
+      TS_ASSERT(!pcm.isEqual(c1, c2));
+    }
+
+    void testEmptyCellShouldNotBeConsideredEqual()
+    {
+      PixelCellMatrix pcm;
+
+      // Since everything now is black, every cell is empty
+      // Make (1, 2) cell not empty and compare it with (1,1)
+      Coords c1(1, 1);
+      Coords c2(1, 2);
+      Pixel light(220, 220, 220);
+      // Put bg pixels
+      this->_putBgPixel(c2, light, 0);
+      this->_putBgPixel(c2, light, 1);
+      this->_putBgPixel(c2, light, 2);
+      this->_putBgPixel(c2, light, 3);
+      // Put cell data pixels
+      Pixel black(0, 0, 0);
+      this->_putPixel(1, 2, black, 0);
+      this->_putPixel(1, 2, black, 1);
+      this->_putPixel(1, 2, black, 2);
       pcm.setPixelMatrix(this->pm);
       TS_ASSERT(!pcm.isEqual(c1, c2));
     }
