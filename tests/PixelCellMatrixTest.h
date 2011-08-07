@@ -21,6 +21,14 @@ class PixelCellMatrixTest : public CxxTest::TestSuite
       }
     }
 
+    void _putPixel(unsigned cellX, unsigned cellY, Pixel p, unsigned keyCoordNum)
+    {
+      PixelCellMatrix pcm;
+      unsigned px = pcm.getCellBaseX(cellX) + PixelCellMatrix::KEY_PIXEL_COORDS[keyCoordNum].x;
+      unsigned py = pcm.getCellBaseY(cellY) + PixelCellMatrix::KEY_PIXEL_COORDS[keyCoordNum].y;
+      this->pm[px][py] = p;
+    }
+
     void testWrongColorsShouldThrowException()
     {
       this->pm[25][56].r = 11;
@@ -69,5 +77,44 @@ class PixelCellMatrixTest : public CxxTest::TestSuite
       pm.resize(1);
       PixelCellMatrix pcm;
       TS_ASSERT_THROWS(pcm.setPixelMatrix(pm), InvalidDimensionException);
+    }
+
+    void testIsEqualShouldBeTrue()
+    {
+      PixelCellMatrix pcm;
+      // Remember, here Coords represent coordinates of cells, not pixels.
+      // Coordinates are 0-based of course. As everything else in C/C++ :)
+      Coords c1(0, 0);
+      Coords c2(0, 4);
+
+      // So, everything is black and therefore all cells should be equal
+      pcm.setPixelMatrix(this->pm);
+      TS_ASSERT(pcm.isEqual(c1, c2));
+
+      // Check 1, 1 and 7, 8 cells. Use first key pixel
+      // a and b are similar pixels.
+      Pixel a(10, 10, 10), b(20, 20, 20);
+      this->_putPixel(1, 1, a, 0);
+      this->_putPixel(7, 8, b, 0);
+      c1.x = 1; c1.y = 1;
+      c2.x = 7; c2.y = 8;
+      pcm.setPixelMatrix(this->pm);
+      TS_ASSERT(pcm.isEqual(c1, c2));
+    }
+
+    void testIsEqualShouldBeFalse()
+    {
+      PixelCellMatrix pcm;
+
+      // Check 3, 4 and 10, 7 cells. Use third key pixel
+      Coords c1(3, 4);
+      Coords c2(10, 7);
+
+      // a and b are not similar pixels.
+      Pixel a(10, 10, 10), b(10, 10, 55);
+      this->_putPixel(3, 4, a, 2);
+      this->_putPixel(10, 7, b, 2);
+      pcm.setPixelMatrix(this->pm);
+      TS_ASSERT(!pcm.isEqual(c1, c2));
     }
 };

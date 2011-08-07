@@ -14,9 +14,7 @@ class PixelCellMatrix : public ICellMatrix
 {
   protected:
     static const unsigned SIMILARITY_DIFF = 10;
-    PixelMatrix pm;
-    unsigned getBaseX(unsigned row);
-    unsigned getBaseY(unsigned col);
+    Pixel pixelData[ICellMatrix::CELLS_PER_ROW][ICellMatrix::CELLS_PER_COL][3];
 
   public:
     PixelCellMatrix() {};
@@ -30,6 +28,8 @@ class PixelCellMatrix : public ICellMatrix
     static const unsigned CELL_WIDTH  = 40;
     static const unsigned CELL_HEIGHT = 50;
 
+    unsigned getCellBaseX(unsigned cellX);
+    unsigned getCellBaseY(unsigned cellY);
     bool isEqual(Coords c1, Coords c2);
     bool isEmpty(Coords c);
     void setPixelMatrix(PixelMatrix matrix);
