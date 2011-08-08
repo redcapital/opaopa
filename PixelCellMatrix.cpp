@@ -18,12 +18,12 @@ const Coords PixelCellMatrix::BLACK_PIXEL_COORDS[4] = {
   Coords(735, 512)
 };
 
-unsigned PixelCellMatrix::getCellBaseX(unsigned cellX)
+int PixelCellMatrix::getCellBaseX(int cellX)
 {
   return cellX * PixelCellMatrix::CELL_WIDTH + PixelCellMatrix::OFFSET_LEFT;
 }
 
-unsigned PixelCellMatrix::getCellBaseY(unsigned cellY)
+int PixelCellMatrix::getCellBaseY(int cellY)
 {
   return cellY * PixelCellMatrix::CELL_HEIGHT + PixelCellMatrix::OFFSET_TOP;
 }
@@ -39,8 +39,8 @@ unsigned PixelCellMatrix::getCellBaseY(unsigned cellY)
  */
 Coords PixelCellMatrix::getCellBackgroundCoords(Coords cellCoords, unsigned whichCorner)
 {
-  unsigned bx = this->getCellBaseX(cellCoords.x);
-  unsigned by = this->getCellBaseY(cellCoords.y);
+  int bx = this->getCellBaseX(cellCoords.x);
+  int by = this->getCellBaseY(cellCoords.y);
   switch (whichCorner) {
     case 0:
       bx += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
@@ -117,8 +117,8 @@ void PixelCellMatrix::setPixelMatrix(PixelMatrix matrix)
   // Check colors of particular pixels. They must be similar to black.
   Pixel black(0, 0, 0);
   for (unsigned i = 0; i < 4; i++) {
-    unsigned x = PixelCellMatrix::BLACK_PIXEL_COORDS[i].x;
-    unsigned y = PixelCellMatrix::BLACK_PIXEL_COORDS[i].y;
+    int x = PixelCellMatrix::BLACK_PIXEL_COORDS[i].x;
+    int y = PixelCellMatrix::BLACK_PIXEL_COORDS[i].y;
     if (!this->isSimilar(matrix[x][y], black)) {
       throw InvalidPixelMatrixException("It seems like pixel matrix does not contain data about game board");
     }
@@ -130,11 +130,11 @@ void PixelCellMatrix::setPixelMatrix(PixelMatrix matrix)
   // Store cell data
   for (unsigned i = 0; i < ICellMatrix::CELLS_PER_ROW; i++) {
     for (unsigned j = 0; j < ICellMatrix::CELLS_PER_COL; j++) {
-      unsigned bx = this->getCellBaseX(i);
-      unsigned by = this->getCellBaseY(j);
+      int bx = this->getCellBaseX(i);
+      int by = this->getCellBaseY(j);
       for (unsigned k = 0; k < 3; k++) {
-        unsigned px = bx + PixelCellMatrix::KEY_PIXEL_COORDS[k].x;
-        unsigned py = by + PixelCellMatrix::KEY_PIXEL_COORDS[k].y;
+        int px = bx + PixelCellMatrix::KEY_PIXEL_COORDS[k].x;
+        int py = by + PixelCellMatrix::KEY_PIXEL_COORDS[k].y;
         this->pixelData[i][j][k] = matrix[px][py];
       }
     }

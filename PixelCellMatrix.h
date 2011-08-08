@@ -30,8 +30,8 @@ class PixelCellMatrix : public ICellMatrix
     static const unsigned CELL_WIDTH  = 40;
     static const unsigned CELL_HEIGHT = 50;
 
-    unsigned getCellBaseX(unsigned cellX);
-    unsigned getCellBaseY(unsigned cellY);
+    int getCellBaseX(int cellX);
+    int getCellBaseY(int cellY);
     Coords getCellBackgroundCoords(Coords cellCoords, unsigned whichCorner);
     bool isEqual(Coords c1, Coords c2);
     bool isEmpty(Coords c);
