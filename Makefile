@@ -3,18 +3,19 @@ CXX_FLAGS := -std=c++0x
 LINK_FLAGS := -lgdi32
 CXXTEST_DIR := ./cxxtest
 TESTDIR := ./tests
-OBJECTS := AbstractSolver.o BfsSolver.o Coords.o DummyCellMatrix.o Pixel.o PixelCellMatrix.o
+LIB_OBJECTS := Application.o AbstractSolver.o BfsSolver.o Coords.o DummyCellMatrix.o Pixel.o PixelCellMatrix.o
+APP_OBJECTS := main.o MainWindow.o ScreenshotGrabber.o
 
 all: app
 
-app: main.o $(OBJECTS)
-	$(CXX) $(CXX_FLAGS) $(LINK_FLAGS) main.o $(OBJECTS) -o app.exe
+app: $(APP_OBJECTS) $(LIB_OBJECTS)
+	$(CXX) $(CXX_FLAGS) $(APP_OBJECTS) $(LIB_OBJECTS) -o app.exe $(LINK_FLAGS) 
 
 test: runner.exe
 	runner.exe
 
-runner.exe: runner.o $(OBJECTS)
-	$(CXX) $(CXX_FLAGS) runner.o $(OBJECTS) -o runner.exe
+runner.exe: runner.o $(LIB_OBJECTS)
+	$(CXX) $(CXX_FLAGS) runner.o $(LIB_OBJECTS) -o runner.exe
 
 %.o: %.cpp
 	$(CXX) $(CXX_FLAGS) -c $< -o $@
