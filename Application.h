@@ -20,7 +20,7 @@ class Application
 
   public:
     int run();
-    ScreenshotGrabber getScreenshotGrabber() const;
+    ScreenshotGrabber& getScreenshotGrabber();
     PixelCellMatrix& getCellMatrix();
     ISolver& getSolver();
     static Application& getInstance();

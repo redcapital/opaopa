@@ -26,9 +26,9 @@ int Application::run()
   return 0;
 }
 
-ScreenshotGrabber Application::getScreenshotGrabber() const
+ScreenshotGrabber& Application::getScreenshotGrabber()
 {
-  return (*this).ssGrabber;
+  return this->ssGrabber;
 }
 
 PixelCellMatrix& Application::getCellMatrix()
