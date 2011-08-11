@@ -28,40 +28,6 @@ int PixelCellMatrix::getCellBaseY(int cellY)
   return cellY * PixelCellMatrix::CELL_HEIGHT + PixelCellMatrix::OFFSET_TOP;
 }
 
-/**
- * Retrieves coordinates of pixel from cell background.
- * Background has four key pixels. Parameter whichCorner determines
- * which pixel should be handled:
- *  0 - upper left
- *  1 - upper right
- *  2 - bottom right
- *  3 - bottom left
- */
-Coords PixelCellMatrix::getCellBackgroundCoords(Coords cellCoords, unsigned whichCorner)
-{
-  int bx = this->getCellBaseX(cellCoords.x);
-  int by = this->getCellBaseY(cellCoords.y);
-  switch (whichCorner) {
-    case 0:
-      bx += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
-      by += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
-      break;
-    case 1:
-      bx += PixelCellMatrix::CELL_WIDTH - PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
-      by += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
-      break;
-    case 2:
-      bx += PixelCellMatrix::CELL_WIDTH - PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
-      by += PixelCellMatrix::CELL_HEIGHT - PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
-      break;
-    case 3:
-      bx += PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
-      by += PixelCellMatrix::CELL_HEIGHT - PixelCellMatrix::BACKGROUND_CORNER_OFFSET;
-      break;
-  }
-  return Coords(bx, by);
-}
-
 bool PixelCellMatrix::isEqual(Coords c1, Coords c2)
 {
   // If any of the cells is empty return false
@@ -69,40 +35,79 @@ bool PixelCellMatrix::isEqual(Coords c1, Coords c2)
     return false;
   }
 
-  // Iterate over three key pixels of each cell and see whether
-  // they are similar.
-  // If so, cells are similar
-  for (unsigned i = 0; i < 3; i++) {
-    if (!this->isSimilar(this->pixelData[c1.x][c1.y][i], this->pixelData[c2.x][c2.y][i])) {
-      return false;
+  std::pair<Coords, Coords> p(c1, c2);
+  if (c2 < c1) {
+    p.first = c2;
+    p.second = c1;
+  }
+  auto it = this->equalityLookups.find(p);
+  if (it == this->equalityLookups.end()) {
+    // Miss
+
+    // Iterate over three key pixels of each cell and see whether
+    // they are similar.
+    // If so, cells are similar
+    bool notSimilar = false;
+    for (unsigned i = 0; i < 3; i++) {
+      if (!this->isSimilar(this->pixelData[c1.x][c1.y][i], this->pixelData[c2.x][c2.y][i])) {
+        notSimilar = true;
+        break;
+      }
+    }
+    if (notSimilar) {
+      this->equalityLookups[p] = false;
+    } else {
+      this->equalityLookups[p] = true;
     }
   }
-  return true;
+  return this->equalityLookups[p];
 }
 
 bool PixelCellMatrix::isEmpty(Coords c)
 {
-  // Iterate over four corner pixels of cell background.
-  // Cell is considered as NOT empty if both 2 conditions are met:
-  // - four points are similar
-  //   because background is monotone
-  // - each of them are lighter than RGB(150, 150, 150)
-  //   because it can be monotone but dark. Dark background is a "hole"
-  //   on game board, meaning it's an empty cell
-  for (unsigned i = 1; i < 4; i++) {
-    if (!this->isSimilar(bgData[c.x][c.y][0], bgData[c.x][c.y][i])) {
-      return true;
+  return this->emptyCells[c];
+}
+
+void PixelCellMatrix::iteratePixelMatrix()
+{
+  for (unsigned i = 0; i < ICellMatrix::CELLS_PER_ROW; i++) {
+    for (unsigned j = 0; j < ICellMatrix::CELLS_PER_COL; j++) {
+      if (this->emptyCells[Coords(i, j)]) {
+        continue;
+      }
+      // Make sure that all 3 pixels are not black
+      // (if so, it is empty cell probably)
+      bool notBlackAtLeastOne = false;
+      for (unsigned t = 0; t < 3; t++) {
+        if (!this->isSimilar(this->pixelData[i][j][t], Pixel(0, 0, 0), 60)) {
+          notBlackAtLeastOne = true;
+          break;
+        }
+      }
+      if (!notBlackAtLeastOne) {
+        this->emptyCells[Coords(i, j)] = true;
+        continue;
+      }
+      bool hasOneEqualCellAtLeast = false;
+      for (unsigned k = 0; k < ICellMatrix::CELLS_PER_ROW; k++) {
+        for (unsigned h = 0; h < ICellMatrix::CELLS_PER_COL; h++) {
+          if (i == k && j == h) {
+            continue;
+          }
+          hasOneEqualCellAtLeast = this->isEqual(Coords(i, j), Coords(k, h));
+          if (hasOneEqualCellAtLeast) {
+            break;
+          }
+        }
+        if (hasOneEqualCellAtLeast) {
+          break;
+        }
+      }
+      if (!hasOneEqualCellAtLeast) {
+        this->emptyCells[Coords(i, j)] = true;
+      }
     }
   }
-  for (unsigned i = 0; i < 4; i++) {
-    if (bgData[c.x][c.y][i].r <= 150
-        && bgData[c.x][c.y][i].g <= 150
-        && bgData[c.x][c.y][i].b <= 150
-    ) {
-      return true;
-    }
-  }
-  return false;
 }
 
 void PixelCellMatrix::setPixelMatrix(PixelMatrix matrix)
@@ -140,22 +145,17 @@ void PixelCellMatrix::setPixelMatrix(PixelMatrix matrix)
     }
   }
 
-  // Store backgroun color data
-  for (unsigned i = 0; i < ICellMatrix::CELLS_PER_ROW; i++) {
-    for (unsigned j = 0; j < ICellMatrix::CELLS_PER_COL; j++) {
-      for (unsigned k = 0; k < 4; k++) {
-        Coords pc = this->getCellBackgroundCoords(Coords(i, j), k);
-        this->bgData[i][j][k] = matrix[pc.x][pc.y];
-      }
-    }
-  }
+  // Clear lookup table
+  this->equalityLookups.clear();
+  this->emptyCells.clear();
+  this->iteratePixelMatrix();
 }
 
-bool PixelCellMatrix::isSimilar(Pixel p1, Pixel p2)
+bool PixelCellMatrix::isSimilar(Pixel p1, Pixel p2, unsigned maxSimilarityDiff)
 {
   std::vector<unsigned> diff = p1.getDiff(p2);
   for (unsigned i = 0; i < 3; i++) {
-    if (diff[i] > PixelCellMatrix::SIMILARITY_DIFF) {
+    if (diff[i] > maxSimilarityDiff) {
       return false;
     }
   }
