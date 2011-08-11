@@ -3,8 +3,8 @@ CXX_FLAGS := -std=c++0x
 LINK_FLAGS := -lgdi32
 CXXTEST_DIR := ./cxxtest
 TESTDIR := ./tests
-LIB_OBJECTS := Application.o AbstractSolver.o BfsSolver.o Coords.o DummyCellMatrix.o Pixel.o PixelCellMatrix.o
-APP_OBJECTS := main.o MainWindow.o ScreenshotGrabber.o
+LIB_OBJECTS := AbstractSolver.o BfsSolver.o Coords.o DummyCellMatrix.o Pixel.o PixelCellMatrix.o
+APP_OBJECTS := main.o Application.o MainWindow.o ScreenshotGrabber.o
 
 all: app
 

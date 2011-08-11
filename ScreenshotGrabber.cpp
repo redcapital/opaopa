@@ -7,7 +7,14 @@ using namespace std;
 using namespace PPSolver;
 
 HWND ScreenshotGrabber::targetWindowHandle;
-HDC ScreenshotGrabber::memoryDc;
+HDC ScreenshotGrabber::memoryDc = NULL;
+HBITMAP ScreenshotGrabber::bitmap = NULL;
+Coords ScreenshotGrabber::clientAreaBaseCoords;
+
+HDC ScreenshotGrabber::getMemoryDC()
+{
+  return ScreenshotGrabber::memoryDc;
+}
 
 // Finds PaoPao window
 HWND ScreenshotGrabber::findTargetWindow()
@@ -75,23 +82,28 @@ PixelMatrix ScreenshotGrabber::getScreenshot(HWND handle)
   ClientToScreen(handle, &p);
   int left = p.x - rc.left;
   int top = p.y - rc.top;
+  ScreenshotGrabber::clientAreaBaseCoords.x = left;
+  ScreenshotGrabber::clientAreaBaseCoords.y = top;
 
-  // Create an in-memory DC to temporarily hold screenshot data
-  ScreenshotGrabber::memoryDc = CreateCompatibleDC(sourceDc);
-
-  // Create a bitmap for memory DC
-  int bitmapWidth = rc.right - rc.left;
-  int bitmapHeight = rc.bottom - rc.top;
-  HBITMAP bitmap = CreateCompatibleBitmap(sourceDc, bitmapWidth, bitmapHeight);
+  if (ScreenshotGrabber::memoryDc == NULL) {
+    // Create an in-memory DC to temporarily hold screenshot data
+    ScreenshotGrabber::memoryDc = CreateCompatibleDC(sourceDc);
+    // Create a bitmap for memory DC
+    ScreenshotGrabber::bitmap = CreateCompatibleBitmap(
+      sourceDc,
+      rc.right - rc.left,
+      rc.bottom - rc.top
+    );
+  }
 
   // Select this bitmap into memory DC
-  HBITMAP oldBitmap = (HBITMAP)SelectObject(ScreenshotGrabber::memoryDc, bitmap);
+  HBITMAP oldBitmap = (HBITMAP)SelectObject(ScreenshotGrabber::memoryDc, ScreenshotGrabber::bitmap);
   if (!this->printWindow(handle, ScreenshotGrabber::memoryDc)) {
     throw ScreenshotGrabberException("Can not find PrintWindow function used to grab screenshots");
   }
   // Getting raw pixel data
   BITMAP bmp;
-  GetObject(bitmap, sizeof(BITMAP), &bmp);
+  GetObject(ScreenshotGrabber::bitmap, sizeof(BITMAP), &bmp);
   if (bmp.bmWidth < ScreenshotGrabber::CLIENT_WIDTH || bmp.bmHeight < ScreenshotGrabber::CLIENT_HEIGHT) {
     throw ScreenshotGrabberException("Got invalid dimensions of screenshot. Is PaoPao's window minimized or so?");
   }
@@ -118,7 +130,7 @@ PixelMatrix ScreenshotGrabber::getScreenshot(HWND handle)
   // We can't copy pixel data until selecting different bitmap into memory DC
   SelectObject(ScreenshotGrabber::memoryDc, oldBitmap);
   int numLines = GetDIBits(
-    ScreenshotGrabber::memoryDc, bitmap, 0, (UINT)bmp.bmHeight,
+    ScreenshotGrabber::memoryDc, ScreenshotGrabber::bitmap, 0, (UINT)bmp.bmHeight,
     data, (BITMAPINFO *)&binfoHeader, DIB_RGB_COLORS
   );
   PixelMatrix pm;
@@ -136,36 +148,8 @@ PixelMatrix ScreenshotGrabber::getScreenshot(HWND handle)
     }
   }
 
-  /*
-  string js = "[\n";
-  int sy = 0, sh = ScreenshotGrabber::CLIENT_HEIGHT, sx = 0, sw = ScreenshotGrabber::CLIENT_WIDTH;
-  for (int py = sy; py < sy + sh; py++) {
-    if (py != sy) {
-      js += ",\n";
-    }
-    js += "[ ";
-    for (int px = sx; px < sx + sw; px++) {
-      if (px != sx) {
-        js += ", ";
-      }
-      stringstream ss;
-      ss << "[";
-      ss << (0x000000ff & pm[px][py].r);
-      ss << ", ";
-      ss << (0x000000ff & pm[px][py].g);
-      ss << ", ";
-      ss << (0x000000ff & pm[px][py].b);
-      ss << "]";
-      js += ss.str();
-    }
-    js += " ]";
-  }
-  js += "]\n";
-  cout << js << endl;
-  */
-
   // Select our bitmap into memory DC again
-  SelectObject(ScreenshotGrabber::memoryDc, bitmap);
+  SelectObject(ScreenshotGrabber::memoryDc, ScreenshotGrabber::bitmap);
 
   // Clean up
   GlobalUnlock(hDIB);
@@ -174,5 +158,19 @@ PixelMatrix ScreenshotGrabber::getScreenshot(HWND handle)
   ReleaseDC(handle, sourceDc);
 
   return pm;
+}
+
+ScreenshotGrabber::~ScreenshotGrabber()
+{
+  // Remove in memory DC
+  if (ScreenshotGrabber::memoryDc != NULL) {
+    DeleteDC(ScreenshotGrabber::memoryDc);
+    DeleteObject(ScreenshotGrabber::bitmap);
+  }
+}
+
+Coords& ScreenshotGrabber::getClientAreaBaseCoords()
+{
+  return ScreenshotGrabber::clientAreaBaseCoords;
 }
 

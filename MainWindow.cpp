@@ -9,6 +9,7 @@ using namespace PPSolver;
 using namespace std;
 
 HWND MainWindow::handle = NULL;
+std::vector<Match> MainWindow::results;
 
 MainWindow::MainWindow(HINSTANCE hInst, int nShowCmd)
 {
@@ -58,15 +59,53 @@ MainWindow::MainWindow(HINSTANCE hInst, int nShowCmd)
 	ShowWindow(MainWindow::handle, nShowCmd);
 }
 
+// Handler of WM_PAINT message
+// Paints results of solving on application's main window
+void MainWindow::doPaint()
+{
+  ScreenshotGrabber& scGrabber = Application::getInstance().getScreenshotGrabber();
+  HDC memoryDc = scGrabber.getMemoryDC();
+  if (memoryDc != NULL) {
+    PixelCellMatrix& pcm = Application::getInstance().getCellMatrix();
+    HDC myDc = GetDC(MainWindow::handle);
+    Coords& offset = scGrabber.getClientAreaBaseCoords();
+    for (auto i = MainWindow::results.begin(); i != MainWindow::results.end(); i++) {
+      BitBlt(
+        myDc,
+        MainWindow::BASEX + i->first.x * PixelCellMatrix::CELL_WIDTH,
+        MainWindow::BASEY + i->first.y * PixelCellMatrix::CELL_HEIGHT,
+        PixelCellMatrix::CELL_WIDTH,
+        PixelCellMatrix::CELL_HEIGHT,
+        memoryDc,
+        offset.x + pcm.getCellBaseX(i->first.x),
+        offset.y + pcm.getCellBaseY(i->first.y),
+        SRCCOPY
+      );
+      BitBlt(
+        myDc,
+        MainWindow::BASEX + i->second.x * PixelCellMatrix::CELL_WIDTH,
+        MainWindow::BASEY + i->second.y * PixelCellMatrix::CELL_HEIGHT,
+        PixelCellMatrix::CELL_WIDTH,
+        PixelCellMatrix::CELL_HEIGHT,
+        memoryDc,
+        offset.x + pcm.getCellBaseX(i->second.x),
+        offset.y + pcm.getCellBaseY(i->second.y),
+        SRCCOPY
+      );
+    }
+    ReleaseDC(MainWindow::handle, myDc);
+  }
+}
+
 LRESULT CALLBACK MainWindow::WinProc(HWND handle, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  HWND hWndButton, hwndPP = NULL;
+  HWND hWndButton;
   PAINTSTRUCT ps;
   HDC hdc;
-  ScreenshotGrabber scGrabber;
+  Application& app = Application::getInstance();
+  ScreenshotGrabber& scGrabber = app.getScreenshotGrabber();
   HWND targetHandle;
   PixelMatrix pm;
-  std::vector<Match> results;
 	switch(msg) {
     case WM_CREATE:
       hWndButton = CreateWindowEx(
@@ -74,8 +113,8 @@ LRESULT CALLBACK MainWindow::WinProc(HWND handle, UINT msg, WPARAM wParam, LPARA
         "BUTTON",
         "GO!",
         WS_TABSTOP|WS_VISIBLE|WS_CHILD|BS_DEFPUSHBUTTON,
-        50,
-        220,
+        350,
+        10,
         100,
         24,
         handle,
@@ -89,7 +128,6 @@ LRESULT CALLBACK MainWindow::WinProc(HWND handle, UINT msg, WPARAM wParam, LPARA
       switch (LOWORD(wParam)) {
         case IDC_MAIN_BUTTON:
           // Button click handler
-          scGrabber = Application::getInstance().getScreenshotGrabber();
           targetHandle = scGrabber.findTargetWindow();
           if (targetHandle == NULL) {
             MessageBox(
@@ -110,21 +148,18 @@ LRESULT CALLBACK MainWindow::WinProc(HWND handle, UINT msg, WPARAM wParam, LPARA
               );
               break;
             }
-            Application::getInstance().getCellMatrix().setPixelMatrix(pm);
-            results = Application::getInstance().getSolver().solve();
-            for (int i = 0; i < results.size(); i++) {
-              cout << results[i].first.x << ", " << results[i].first.y
-                << " and " << results[i].second.x << ", " << results[i].second.y << endl;
-            }
+            app.getCellMatrix().setPixelMatrix(pm);
+            MainWindow::results = app.getSolver().solve();
+            InvalidateRect(handle, NULL, TRUE);
           }
           break;
       }
       break;
 
     case WM_PAINT:
-      //hdc = BeginPaint(hWnd, &ps);
-      //dopaint(hWnd);
-      //EndPaint(hWnd, &ps);
+      hdc = BeginPaint(handle, &ps);
+      MainWindow::doPaint();
+      EndPaint(handle, &ps);
       break;
 
 		case WM_DESTROY:
