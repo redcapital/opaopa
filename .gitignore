@@ -1,3 +1,4 @@
 *.exe
 *.o
 runner.cpp
+!opaopa.exe
